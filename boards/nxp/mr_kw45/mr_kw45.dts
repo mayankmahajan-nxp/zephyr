@@ -11,7 +11,7 @@
 #include <zephyr/dt-bindings/input/input-event-codes.h>
 
 / {
-	model = "NXP FRDM-MCXW71 board";
+	model = "NXP MR_KW45 board";
 
 	aliases {
 		led0 = &blue_led;

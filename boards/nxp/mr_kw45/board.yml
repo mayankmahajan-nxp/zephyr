@@ -1,6 +1,6 @@
 board:
   name: mr_kw45
-  full_name: FRDM-MCXW71
+  full_name: MR-KW45
   vendor: nxp
   socs:
-    - name: mcxw716c
+    - name: kw45b41z83
