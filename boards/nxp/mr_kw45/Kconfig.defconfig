@@ -1,0 +1,11 @@
+# MR-KW45 board
+
+# Copyright 2024 NXP
+# SPDX-License-Identifier: Apache-2.0
+
+if BOARD_MR_KW45
+
+config BT_DIS_MANUF
+	default "NXP"
+
+endif # BOARD_MR_KW45
