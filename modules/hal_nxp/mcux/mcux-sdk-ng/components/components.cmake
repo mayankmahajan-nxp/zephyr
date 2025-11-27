@@ -35,7 +35,7 @@ if(CONFIG_NXP_RF_IMU)
     set(CONFIG_MCUX_COMPONENT_driver.gdma ON)
     set(CONFIG_MCUX_COMPONENT_component.wireless_imu_adapter ON)
     set(CONFIG_MCUX_PRJSEG_component.osa_interface.osa_macro_used ON)
-  elseif(CONFIG_SOC_SERIES_KW45X OR CONFIG_SOC_SERIES_MCXW7XX)
+  elseif(CONFIG_SOC_SERIES_KW45X OR CONFIG_SOC_SERIES_MCXW7XX OR CONFIG_SOC_SERIES_KINETIS_KW45)
     set(CONFIG_MCUX_COMPONENT_component.lists ON)
     set(CONFIG_MCUX_COMPONENT_component.rpmsg_adapter ON)
     zephyr_compile_definitions(HAL_RPMSG_SELECT_ROLE=0U)
@@ -56,11 +56,11 @@ if(CONFIG_USE_component_osa_zephyr)
 endif()
 
 # Component definitions
-if(CONFIG_NXP_RF_IMU)
-  if(CONFIG_SOC_SERIES_KW45X OR CONFIG_SOC_SERIES_MCXW7XX)
-    zephyr_compile_definitions(HAL_RPMSG_SELECT_ROLE=0U)
-  endif()
-endif()
+# if(CONFIG_NXP_RF_IMU)
+#   if(CONFIG_SOC_SERIES_KW45X OR CONFIG_SOC_SERIES_MCXW7XX)
+#     zephyr_compile_definitions(HAL_RPMSG_SELECT_ROLE=0U)
+#   endif()
+# endif()
 
 add_subdirectory(${MCUX_SDK_NG_DIR}/components/osa
   ${CMAKE_CURRENT_BINARY_DIR}/osa

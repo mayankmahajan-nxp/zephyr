@@ -37,6 +37,9 @@ family:
   - name: k32lx
     socs:
     - name: k32l2b31a
+  - name: kw45
+    socs:
+    - name: kw45b41z83
 runners:
   run_once:
     '--erase':
