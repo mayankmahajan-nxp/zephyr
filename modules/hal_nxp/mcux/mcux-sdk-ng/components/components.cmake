@@ -39,6 +39,11 @@ if(CONFIG_NXP_RF_IMU)
     set(CONFIG_MCUX_COMPONENT_component.lists ON)
     set(CONFIG_MCUX_COMPONENT_component.rpmsg_adapter ON)
     zephyr_compile_definitions(HAL_RPMSG_SELECT_ROLE=0U)
+
+    set(CONFIG_MCUX_COMPONENT_driver.spc ON)
+    set(CONFIG_MCUX_COMPONENT_component.lists ON)
+    set(CONFIG_USE_component_osa_zephyr ON)
+    zephyr_compile_definitions(OSA_USED=1U)
   endif()
 endif()
 
