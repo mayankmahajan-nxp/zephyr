@@ -227,12 +227,136 @@ int odid_update_message_pack_encoded(ODID_MessagePack_encoded *message_pack_enco
 	return 0;
 }
 
+#include <zephyr/kernel.h>
+#include <zephyr/device.h>
+#include <zephyr/drivers/uart.h>
+#include <zephyr/sys/printk.h>
+
+#define UART_NODE DT_NODELABEL(lpuart0)
+
+#include <zephyr/kernel.h>
+#include <zephyr/drivers/uart.h>
+#include <string.h>
+#include <stdint.h>
+#include <stdio.h>
+
+#define HDR_BYTE 0xA5
+
+typedef enum {
+    ST_SYNC,
+    ST_LEN,
+    ST_DATA,
+    ST_CRC1,
+    ST_CRC2
+} rx_state_t;
+
+static uint16_t crc16_ccitt_false(const uint8_t *data, size_t len) {
+    uint16_t crc = 0xFFFF;
+    for (size_t i = 0; i < len; ++i) {
+        crc ^= (uint16_t)data[i] << 8;
+        for (int b = 0; b < 8; ++b) {
+            crc = (crc & 0x8000) ? (uint16_t)((crc << 1) ^ 0x1021) : (uint16_t)(crc << 1);
+        }
+    }
+    return crc;
+}
+
+static inline float float_from_le_bytes(const uint8_t b[4]) {
+    float f; memcpy(&f, b, 4); return f;
+}
+
 int main(void)
 {
 	int err;
 	struct bt_le_ext_adv *adv;
 
 	printf("Starting ODID Demo\n");
+
+	const struct device *uart_dev = DEVICE_DT_GET(UART_NODE);
+
+	if (!device_is_ready(uart_dev)) {
+		printf("UART device not ready!\n");
+		return -1;
+	}
+
+	printf("UART poll demo started (baud set in DTS, expecting 57600)...\n");
+    rx_state_t st = ST_SYNC;
+    uint8_t len = 0;
+    uint8_t data[32];
+    uint8_t idx = 0;
+    uint16_t rx_crc = 0;
+
+    while (1) {
+        uint8_t c;
+        if (uart_poll_in(uart_dev, &c) == 0) {
+            switch (st) {
+            case ST_SYNC:
+                st = (c == HDR_BYTE) ? ST_LEN : ST_SYNC;
+                break;
+
+            case ST_LEN:
+                len = c;
+                if (len == 0 || len > sizeof(data)) {
+                    st = ST_SYNC; // invalid; resync
+                } else {
+                    idx = 0;
+                    st = ST_DATA;
+                }
+                break;
+
+            case ST_DATA:
+                data[idx++] = c;
+                if (idx >= len) {
+                    st = ST_CRC1;
+                }
+                break;
+
+            case ST_CRC1:
+                rx_crc = ((uint16_t)c) << 8;
+                st = ST_CRC2;
+                break;
+
+            case ST_CRC2: {
+                rx_crc |= c;
+
+                // Compute CRC over [LEN || PAYLOAD]
+                uint8_t crc_buf[1 + idx];
+                crc_buf[0] = len;
+                memcpy(&crc_buf[1], data, idx);
+                uint16_t calc = crc16_ccitt_false(crc_buf, sizeof(crc_buf));
+
+                if (calc == rx_crc) {
+                    if (len == 8) {
+                        float f1 = float_from_le_bytes(&data[0]);
+                        float f2 = float_from_le_bytes(&data[4]);
+                        printf("Floats: %f, %f\n", f1, f2);
+                    } else {
+                        printf("Valid frame len=%u (not 8)\n", len);
+                    }
+                } else {
+                    printf("CRC mismatch: calc=0x%04X rx=0x%04X\n", calc, rx_crc);
+                }
+                st = ST_SYNC; // resync for next frame
+                break;
+            }
+            }
+        } else {
+            k_sleep(K_USEC(200)); // avoid busy-wait
+        }
+    }
+
+	while (1) {
+		uint8_t c;
+		/* uart_poll_in returns 0 when a byte was read, -1 if nothing available */
+		if (uart_poll_in(uart_dev, &c) == 0) {
+			/* Print received byte; as char and hex for visibility */
+			printf("RX: '%c' (0x%02X)\n", (c >= 32 && c < 127) ? c : '.', c);
+			// rx_two_floats_raw(c);
+		}
+
+		/* Small sleep to avoid 100% CPU in tight loop; tune as needed */
+		// k_msleep(1);
+	}
 
 	err = odid_message_pack_data_init(&message_pack_data);
 	if (err != ODID_SUCCESS) {

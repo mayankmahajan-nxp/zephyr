@@ -60,7 +60,7 @@
 };
 
 &lpuart0 {
-	current-speed = <115200>;
+	current-speed = <57600>;
 	status =  "okay";
 	pinctrl-0 = <&pinmux_lpuart0>;
 	pinctrl-names = "default";
