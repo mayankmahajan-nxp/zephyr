@@ -36,7 +36,7 @@ const struct bt_le_adv_param bt_adv_param = {
 	.id = BT_ID_DEFAULT,
 	.sid = 0,
 	.secondary_max_skip = 0,
-	.options = BT_LE_ADV_OPT_EXT_ADV | BT_LE_ADV_OPT_USE_IDENTITY,
+	.options = BT_LE_ADV_OPT_EXT_ADV | BT_LE_ADV_OPT_USE_IDENTITY | BT_LE_ADV_OPT_CODED,
 	.interval_min = BT_GAP_ADV_FAST_INT_MIN_1,
 	.interval_max = BT_GAP_ADV_FAST_INT_MAX_1,
 	.peer = NULL,
@@ -205,8 +205,8 @@ int odid_update_message_pack_encoded(ODID_MessagePack_encoded *message_pack_enco
 	static double theta = 0.0;
 	static double radius = 0.0;
 
-	uasData.Location.Latitude -= radius * cos(theta);
-	uasData.Location.Longitude += (radius * 1.5) * sin(theta);
+	// uasData.Location.Latitude -= radius * cos(theta);
+	// uasData.Location.Longitude += (radius * 1.5) * sin(theta);
 	err = encodeLocationMessage((ODID_Location_encoded *)&message_pack_data.Messages[2], &uasData.Location);
 	if (err != ODID_SUCCESS) {
 		printf("Encoding location message failed. err = %d.\n", err);
@@ -226,6 +226,8 @@ int odid_update_message_pack_encoded(ODID_MessagePack_encoded *message_pack_enco
 
 	return 0;
 }
+
+
 
 #include <zephyr/kernel.h>
 #include <zephyr/device.h>
@@ -265,12 +267,11 @@ static inline float float_from_le_bytes(const uint8_t b[4]) {
     float f; memcpy(&f, b, 4); return f;
 }
 
-int main(void)
-{
-	int err;
-	struct bt_le_ext_adv *adv;
+#define STACK_SIZE 1024
+#define PRIORITY 5
+K_THREAD_STACK_DEFINE(my_stack, STACK_SIZE);
 
-	printf("Starting ODID Demo\n");
+void my_thread(void *p1, void *p2, void *p3) {
 
 	const struct device *uart_dev = DEVICE_DT_GET(UART_NODE);
 
@@ -280,83 +281,86 @@ int main(void)
 	}
 
 	printf("UART poll demo started (baud set in DTS, expecting 57600)...\n");
-    rx_state_t st = ST_SYNC;
-    uint8_t len = 0;
-    uint8_t data[32];
-    uint8_t idx = 0;
-    uint16_t rx_crc = 0;
 
-    while (1) {
-        uint8_t c;
-        if (uart_poll_in(uart_dev, &c) == 0) {
-            switch (st) {
-            case ST_SYNC:
-                st = (c == HDR_BYTE) ? ST_LEN : ST_SYNC;
-                break;
+	rx_state_t st = ST_SYNC;
+	uint8_t len = 0;
+	uint8_t data[32];
+	uint8_t idx = 0;
+	uint16_t rx_crc = 0;
 
-            case ST_LEN:
-                len = c;
-                if (len == 0 || len > sizeof(data)) {
-                    st = ST_SYNC; // invalid; resync
-                } else {
-                    idx = 0;
-                    st = ST_DATA;
-                }
-                break;
-
-            case ST_DATA:
-                data[idx++] = c;
-                if (idx >= len) {
-                    st = ST_CRC1;
-                }
-                break;
-
-            case ST_CRC1:
-                rx_crc = ((uint16_t)c) << 8;
-                st = ST_CRC2;
-                break;
-
-            case ST_CRC2: {
-                rx_crc |= c;
-
-                // Compute CRC over [LEN || PAYLOAD]
-                uint8_t crc_buf[1 + idx];
-                crc_buf[0] = len;
-                memcpy(&crc_buf[1], data, idx);
-                uint16_t calc = crc16_ccitt_false(crc_buf, sizeof(crc_buf));
-
-                if (calc == rx_crc) {
-                    if (len == 8) {
-                        float f1 = float_from_le_bytes(&data[0]);
-                        float f2 = float_from_le_bytes(&data[4]);
-                        printf("Floats: %f, %f\n", f1, f2);
-                    } else {
-                        printf("Valid frame len=%u (not 8)\n", len);
-                    }
-                } else {
-                    printf("CRC mismatch: calc=0x%04X rx=0x%04X\n", calc, rx_crc);
-                }
-                st = ST_SYNC; // resync for next frame
-                break;
-            }
-            }
-        } else {
-            k_sleep(K_USEC(200)); // avoid busy-wait
-        }
-    }
-
-	while (1) {
+    	while (true) {
 		uint8_t c;
-		/* uart_poll_in returns 0 when a byte was read, -1 if nothing available */
 		if (uart_poll_in(uart_dev, &c) == 0) {
-			/* Print received byte; as char and hex for visibility */
-			printf("RX: '%c' (0x%02X)\n", (c >= 32 && c < 127) ? c : '.', c);
-			// rx_two_floats_raw(c);
-		}
+			switch (st) {
+			case ST_SYNC:
+				st = (c == HDR_BYTE) ? ST_LEN : ST_SYNC;
+				break;
 
-		/* Small sleep to avoid 100% CPU in tight loop; tune as needed */
-		// k_msleep(1);
+			case ST_LEN:
+				len = c;
+				if (len == 0 || len > sizeof(data)) {
+					st = ST_SYNC; // invalid; resync
+				} else {
+					idx = 0;
+					st = ST_DATA;
+				}
+				break;
+
+			case ST_DATA:
+				data[idx++] = c;
+				if (idx >= len) {
+					st = ST_CRC1;
+				}
+				break;
+
+			case ST_CRC1:
+				rx_crc = ((uint16_t)c) << 8;
+				st = ST_CRC2;
+				break;
+
+			case ST_CRC2:
+				rx_crc |= c;
+
+				// Compute CRC over [LEN || PAYLOAD]
+				uint8_t crc_buf[1 + idx];
+				crc_buf[0] = len;
+				memcpy(&crc_buf[1], data, idx);
+				uint16_t calc = crc16_ccitt_false(crc_buf, sizeof(crc_buf));
+
+				if (calc == rx_crc) {
+					if (len == 8) {
+						float f1 = float_from_le_bytes(&data[0]);
+						float f2 = float_from_le_bytes(&data[4]);
+						printf("Floats: %f, %f\n", f1, f2);
+						uasData.Location.Latitude = f1;
+						uasData.Location.Longitude = f2;
+					} else {
+						printf("Valid frame len=%u (not 8)\n", len);
+					}
+				} else {
+					printf("CRC mismatch: calc=0x%04X rx=0x%04X\n", calc, rx_crc);
+				}
+				st = ST_SYNC; // resync for next frame
+				break;
+			}
+		} else {
+		}
 	}
+
+}
+
+
+
+int main(void)
+{
+	int err;
+	struct bt_le_ext_adv *adv;
+
+	printf("Starting ODID Demo\n");
+
+	struct k_thread my_thread_data;
+	k_tid_t tid = k_thread_create(&my_thread_data, my_stack, STACK_SIZE, my_thread,
+				      NULL, NULL, NULL, PRIORITY, 0, K_NO_WAIT);
 
 	err = odid_message_pack_data_init(&message_pack_data);
 	if (err != ODID_SUCCESS) {
