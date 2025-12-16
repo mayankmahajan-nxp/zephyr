@@ -25,22 +25,19 @@ static uint8_t payload[ODID_PAYLOAD_LEN] = {
 };
 
 static const struct bt_data ad[] = {
-	{
-		.type = BT_DATA_SVC_DATA16,
-		.data_len = ODID_PAYLOAD_LEN,
-		.data = payload,
-	},
+	BT_DATA(BT_DATA_SVC_DATA16, payload, ODID_PAYLOAD_LEN)
 };
 
 const struct bt_le_adv_param bt_adv_param = {
 	.id = BT_ID_DEFAULT,
 	.sid = 0,
 	.secondary_max_skip = 0,
-	.options = BT_LE_ADV_OPT_EXT_ADV | BT_LE_ADV_OPT_USE_IDENTITY | BT_LE_ADV_OPT_CODED,
+	.options = BT_LE_ADV_OPT_EXT_ADV | BT_LE_ADV_OPT_USE_IDENTITY | BT_LE_ADV_OPT_USE_TX_POWER,
 	.interval_min = BT_GAP_ADV_FAST_INT_MIN_1,
 	.interval_max = BT_GAP_ADV_FAST_INT_MAX_1,
 	.peer = NULL,
 };
+// .options = BT_LE_ADV_OPT_EXT_ADV | BT_LE_ADV_OPT_USE_IDENTITY | BT_LE_ADV_OPT_NO_2M | BT_LE_ADV_OPT_CODED | BT_LE_ADV_OPT_USE_TX_POWER,
 
 #define MINIMUM(a, b) (((a) < (b)) ? (a) : (b))
 
@@ -287,6 +284,7 @@ void my_thread(void *p1, void *p2, void *p3) {
 	uint8_t data[32];
 	uint8_t idx = 0;
 	uint16_t rx_crc = 0;
+	uart_err_check(uart_dev);
 
     	while (true) {
 		uint8_t c;
@@ -346,7 +344,6 @@ void my_thread(void *p1, void *p2, void *p3) {
 		} else {
 		}
 	}
-
 }
 
 
@@ -358,9 +355,9 @@ int main(void)
 
 	printf("Starting ODID Demo\n");
 
-	struct k_thread my_thread_data;
-	k_tid_t tid = k_thread_create(&my_thread_data, my_stack, STACK_SIZE, my_thread,
-				      NULL, NULL, NULL, PRIORITY, 0, K_NO_WAIT);
+	// struct k_thread my_thread_data;
+	// k_tid_t tid = k_thread_create(&my_thread_data, my_stack, STACK_SIZE, my_thread,
+	// 			      NULL, NULL, NULL, PRIORITY, 0, K_SECONDS(2));
 
 	err = odid_message_pack_data_init(&message_pack_data);
 	if (err != ODID_SUCCESS) {
@@ -411,16 +408,20 @@ int main(void)
 		return 0;
 	}
 
+	struct bt_le_ext_adv_info info;
+	bt_le_ext_adv_get_info(adv, &info);
+	printk("Id: %d, TX power: %d dBm", info.id, info.tx_power);
+
 	while (true) {
 		odid_update_message_pack_encoded(&message_pack_encoded);
 
-		err = bt_le_ext_adv_set_data(adv, ad, ARRAY_SIZE(ad), NULL, 0);
-		if (err != 0) {
-			printk("Failed to set extended advertising data (err %d)\n", err);
-			return err;
-		}
+		// err = bt_le_ext_adv_set_data(adv, ad, ARRAY_SIZE(ad), NULL, 0);
+		// if (err != 0) {
+		// 	printk("Failed to set extended advertising data (err %d)\n", err);
+		// 	return err;
+		// }
 
-		k_sleep(K_MSEC(250));
+		k_sleep(K_MSEC(1000));
 	}
 
 	return 0;
