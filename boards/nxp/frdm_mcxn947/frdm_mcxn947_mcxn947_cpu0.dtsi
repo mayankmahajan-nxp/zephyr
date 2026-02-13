@@ -23,9 +23,9 @@
 		zephyr,flash = &flash;
 		zephyr,flash-controller = &fmu;
 		zephyr,code-partition = &slot0_partition;
-		zephyr,uart-mcumgr = &flexcomm4_lpuart4;
-		zephyr,console = &flexcomm4_lpuart4;
-		zephyr,shell-uart = &flexcomm4_lpuart4;
+		zephyr,uart-mcumgr = &flexcomm2_lpuart2;
+		zephyr,console = &flexcomm2_lpuart2;
+		zephyr,shell-uart = &flexcomm2_lpuart2;
 		zephyr,canbus = &flexcan0;
 		zephyr,code-cpu1-partition = &slot1_partition;
 	};
@@ -261,7 +261,7 @@ zephyr_udc0: &usb1 {
 };
 
 &i3c1 {
-	status = "okay";
+	status = "disabled";
 };
 
 &flexio0 {
