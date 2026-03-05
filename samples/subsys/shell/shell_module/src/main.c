@@ -368,6 +368,9 @@ SHELL_CMD_REGISTER(section_cmd, &sub_section_cmd,
 
 int main(void)
 {
+	printf("Hello World! %s\n", CONFIG_BOARD_TARGET);
+	printf("Board bootup completed successfully.\n");
+
 #if DT_NODE_HAS_COMPAT(DT_CHOSEN(zephyr_shell_uart), zephyr_cdc_acm_uart)
 	const struct device *dev;
 	uint32_t dtr = 0;
