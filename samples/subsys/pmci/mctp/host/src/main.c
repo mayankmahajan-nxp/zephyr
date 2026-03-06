@@ -20,12 +20,15 @@ LOG_MODULE_REGISTER(mctp_host);
 #define REMOTE_HELLO_EID 10
 
 K_SEM_DEFINE(mctp_rx, 0, 1);
+static struct mctp *mctp_ctx;
 
 static void rx_message(uint8_t eid, bool tag_owner, uint8_t msg_tag, void *data, void *msg,
 		       size_t len)
 {
 	LOG_INF("received message \"%s\" from endpoint %d, msg_tag %d, len %zu", (char *)msg, eid,
 		msg_tag, len);
+	LOG_HEXDUMP_INF(msg, len, "MCTP RX:");
+	mctp_message_tx(mctp_ctx, REMOTE_HELLO_EID, false, 0, "\x01\x00\x00\x03\x00\x00\x00\x00\x00\x05\xF1\xF0\xF0\x00", 14);
 	k_sem_give(&mctp_rx);
 }
 
@@ -34,7 +37,7 @@ MCTP_UART_DT_DEFINE(mctp_host, DEVICE_DT_GET(DT_NODELABEL(arduino_serial)));
 int main(void)
 {
 	int rc;
-	struct mctp *mctp_ctx;
+	// struct mctp *mctp_ctx;
 
 	LOG_INF("MCTP Host EID:%d on %s\n", LOCAL_HELLO_EID, CONFIG_BOARD_TARGET);
 
@@ -49,8 +52,8 @@ int main(void)
 	while (true) {
 		k_sleep(K_MSEC(1000));
 		LOG_INF("Sending message \"hello\" to endpoint %d", REMOTE_HELLO_EID);
-		rc = mctp_message_tx(mctp_ctx, REMOTE_HELLO_EID, false, 0, "hello",
-				     sizeof("hello"));
+		rc = mctp_message_tx(mctp_ctx, REMOTE_HELLO_EID, false, 0, "\x01hello",
+				     sizeof("\x01hello"));
 		if (rc != 0) {
 			LOG_WRN("Failed to send message, errno %d", rc);
 			k_msleep(1000);
