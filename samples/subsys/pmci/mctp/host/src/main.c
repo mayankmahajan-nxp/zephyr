@@ -15,9 +15,9 @@
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(mctp_host);
 
-#define LOCAL_HELLO_EID 20
+#define LOCAL_HELLO_EID 9
 
-#define REMOTE_HELLO_EID 10
+#define REMOTE_HELLO_EID 8
 
 K_SEM_DEFINE(mctp_rx, 0, 1);
 static struct mctp *mctp_ctx;
